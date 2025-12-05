@@ -1,4 +1,4 @@
-use crate::{Point, render::Color};
+use crate::{Point, Size, render::Color};
 use bitflags::bitflags;
 
 
@@ -8,8 +8,7 @@ pub struct C2DText {
     max_glyphs: usize,
     pub flags: C2DTextFlags,
     pub position: Point,
-    pub scale_x: f32,
-    pub scale_y: f32,
+    pub size: Size,
     pub color: Option<Color>,
 }
 
@@ -32,7 +31,7 @@ bitflags! {
 }
 
 impl C2DText {
-    pub fn new(max_glyphs: usize, flags: C2DTextFlags, position: Point, scale_x: f32, scale_y: f32, color: Option<Color>) -> Result<Self, crate::Error> {
+    pub fn new(max_glyphs: usize, flags: C2DTextFlags, position: Point, size: Size, color: Option<Color>) -> Result<Self, crate::Error> {
         let mut raw_text = std::mem::MaybeUninit::<citro2d_sys::C2D_Text>::uninit();
         unsafe {
             let raw_text_buf = citro2d_sys::C2D_TextBufNew(max_glyphs);
@@ -54,8 +53,7 @@ impl C2DText {
                 max_glyphs,
                 position,
                 flags,
-                scale_x,
-                scale_y,
+                size,
                 color,
             })
         }
@@ -113,8 +111,8 @@ impl C2DText {
                     self.position.x, 
                     self.position.y, 
                     self.position.z, 
-                    self.scale_x, 
-                    self.scale_y,
+                    self.size.width, 
+                    self.size.height,
                     color
                 )
             } else {
@@ -124,8 +122,8 @@ impl C2DText {
                     self.position.x, 
                     self.position.y, 
                     self.position.z, 
-                    self.scale_x, 
-                    self.scale_y
+                    self.size.width, 
+                    self.size.height
                 )
             }
             
