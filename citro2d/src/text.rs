@@ -18,7 +18,7 @@ pub struct C2DText {
 bitflags! {
     pub struct C2DTextFlags: u32 {
         const AT_BASELINE      = 1 << 0; // BIT(0)
-        const WITH_COLOR       = 1 << 1; // BIT(1)
+        //const WITH_COLOR       = 1 << 1; // BIT(1)
 
         const ALIGN_LEFT       = 0 << 2; // 0
         const ALIGN_RIGHT      = 1 << 2; // 4
@@ -107,13 +107,13 @@ impl C2DText {
             if let Some(color) = self.color {
                 citro2d_sys::C2D_DrawText(
                     &self.raw_text, 
-                    self.flags.bits(), 
+                    self.flags.bits() | 1 << 1, // with color flag 
                     self.position.x, 
                     self.position.y, 
                     self.position.z, 
                     self.size.width, 
                     self.size.height,
-                    color
+                    color.inner
                 )
             } else {
                 citro2d_sys::C2D_DrawText(
