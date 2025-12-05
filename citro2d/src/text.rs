@@ -39,7 +39,7 @@ impl C2DTextFlags {
         C2DTextFlags { baseline, word_wrap, alignment }
     }
 
-    pub fn with_alignment(mut self, alignment: C2DTextAlignment) -> Self {
+    pub fn alignment(mut self, alignment: C2DTextAlignment) -> Self {
         self.alignment = alignment;
         self
     }
@@ -49,7 +49,7 @@ impl C2DTextFlags {
         self
     }
 
-    pub fn wrap_words(mut self, wrap: bool) -> Self {
+    pub fn word_wrap(mut self, wrap: bool) -> Self {
         self.word_wrap = wrap;
         self
     }
