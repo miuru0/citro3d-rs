@@ -1,5 +1,71 @@
 use crate::{Point, Size, render::Color};
-use bitflags::bitflags;
+
+#[derive(Debug, Clone, Copy)]
+pub enum C2DTextAlignment {
+    Left,
+    Right,
+    Center,
+    Justified,
+    Mask,
+}
+
+impl Default for C2DTextAlignment {
+    fn default() -> Self {
+        C2DTextAlignment::Left
+    }
+}
+
+impl C2DTextAlignment {
+    pub fn bits(&self) -> u32 {
+        match self {
+            C2DTextAlignment::Left => 0 << 2,
+            C2DTextAlignment::Right => 1 << 2,
+            C2DTextAlignment::Center => 2 << 2,
+            C2DTextAlignment::Justified => 3 << 2,
+            C2DTextAlignment::Mask => 3 << 2,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct C2DTextFlags {
+    pub baseline: bool,
+    pub word_wrap: bool,
+    pub alignment: C2DTextAlignment,
+}
+
+impl C2DTextFlags {
+    pub fn new(baseline: bool, word_wrap: bool, alignment: C2DTextAlignment) -> Self {
+        C2DTextFlags { baseline, word_wrap, alignment }
+    }
+
+    pub fn with_alignment(mut self, alignment: C2DTextAlignment) -> Self {
+        self.alignment = alignment;
+        self
+    }
+    
+    pub fn at_baseline(mut self, baseline: bool) -> Self {
+        self.baseline = baseline;
+        self
+    }
+
+    pub fn wrap_words(mut self, wrap: bool) -> Self {
+        self.word_wrap = wrap;
+        self
+    }
+
+    pub fn bits(&self) -> u32 {
+        let mut bits = 0;
+        if self.baseline {
+            bits |= 1 << 0;
+        }
+        if self.word_wrap {
+            bits |= 1 << 4;
+        }
+        bits |= self.alignment.bits();
+        bits
+    }
+}
 
 
 pub struct C2DText {
@@ -12,26 +78,8 @@ pub struct C2DText {
     pub color: Option<Color>,
 }
 
-
-
-
-bitflags! {
-    pub struct C2DTextFlags: u32 {
-        const AT_BASELINE      = 1 << 0; // BIT(0)
-        //const WITH_COLOR       = 1 << 1; // BIT(1)
-
-        const ALIGN_LEFT       = 0 << 2; // 0
-        const ALIGN_RIGHT      = 1 << 2; // 4
-        const ALIGN_CENTER     = 2 << 2; // 8
-        const ALIGN_JUSTIFIED  = 3 << 2; // 12
-        const ALIGN_MASK       = 3 << 2; // 12
-
-        const WORD_WRAP        = 1 << 4; // BIT(4)
-    }
-}
-
 impl C2DText {
-    pub fn new(max_glyphs: usize, flags: C2DTextFlags, position: Point, size: Size, color: Option<Color>) -> Result<Self, crate::Error> {
+    pub fn new(max_glyphs: usize, position: Point, size: Size, color: Option<Color>, flags: C2DTextFlags) -> Result<Self, crate::Error> {
         let mut raw_text = std::mem::MaybeUninit::<citro2d_sys::C2D_Text>::uninit();
         unsafe {
             let raw_text_buf = citro2d_sys::C2D_TextBufNew(max_glyphs);
