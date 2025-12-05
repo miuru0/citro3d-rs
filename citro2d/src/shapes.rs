@@ -11,7 +11,7 @@ pub struct MultiColor {
 }
 
 /// A trait to help render all 2D shapes supported by citro2d
-pub trait Shape {
+pub(crate) trait Shape {
     //TODO possibly return Option<self>.
     fn render(&self) -> bool;
 }
