@@ -9,4 +9,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     /// A C2D object or context could not be initialized.
     FailedToInitialize,
+    TooManyGlyphs,
+    FailedToParse
 }
