@@ -3,7 +3,7 @@ use std::cell::RefMut;
 
 use ctru::services::gfx::Screen;
 
-use crate::{Error, Result, shapes::Shape, text::C2DText};
+use crate::{Error, Result, shapes::Shape, sprite::Sprite, text::C2DText};
 
 /// A color in RGBA format. The color is stored as a 32-bit integer
 #[derive(Debug, Clone, Copy)]
@@ -80,4 +80,10 @@ impl<'screen> Target<'screen> {
     pub fn render_text(&self, text: &C2DText) {
         text.render();
     }
+
+    pub fn render_sprite(&self, sprite: &Sprite) {
+        sprite.render();
+    }
+
+
 }

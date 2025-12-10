@@ -1,3 +1,4 @@
+
 #![no_std]
 #![allow(non_snake_case)]
 #![allow(warnings)]
@@ -12,6 +13,11 @@
     html_logo_url = "https://user-images.githubusercontent.com/11131775/225929072-2fa1741c-93ae-4b47-9bdf-af70f3d59910.png"
 )]
 
+#[cfg(not(OUT_DIR))]
+include!("bindings.rs");
+
+
+#[cfg(OUT_DIR)]
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 // Prevent linking errors from the standard `test` library when running `cargo 3ds test --lib`.

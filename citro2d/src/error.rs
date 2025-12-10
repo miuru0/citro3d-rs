@@ -10,5 +10,7 @@ pub enum Error {
     /// A C2D object or context could not be initialized.
     FailedToInitialize,
     TooManyGlyphs,
-    FailedToParse
+    FailedToParse,
+    ErrorLoading,
+    RomFsNotInitializated,
 }
