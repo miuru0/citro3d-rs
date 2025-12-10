@@ -1,12 +1,11 @@
 use std::marker::PhantomData;
 
-use ctru::services::romfs::RomFS;
-
 use crate::base::SheetImage;
 
 
 pub struct SpriteSheet {
     pub raw_sprite_sheet: citro2d_sys::C2D_SpriteSheet,
+    count: usize,
 }
 
 impl SpriteSheet {
@@ -16,19 +15,28 @@ impl SpriteSheet {
         if raw_sprite_sheet.is_null() {
             return Err(crate::Error::ErrorLoading)
         }
+
+        let count = unsafe { citro2d_sys::C2D_SpriteSheetCount(raw_sprite_sheet) };
         Ok(Self {
-            raw_sprite_sheet
+            raw_sprite_sheet,
+            count,
         })
     }
 
-    pub fn get(&self, index: usize) -> Sprite<'_> {
-        let mut raw_sprite = unsafe { std::mem::zeroed::<citro2d_sys::C2D_Sprite>() };
-        unsafe { citro2d_sys::C2D_SpriteFromSheet(&mut raw_sprite as *mut _, self.raw_sprite_sheet, index) };
-        Sprite { raw_sprite, _marker: PhantomData }
+    pub fn len(&self) -> usize {
+        self.count
     }
 
-    
+    pub fn get(&self, index: usize) -> Option<Sprite<'_>> {
+        if index >= self.count {
+            return None
+        }
 
+        let mut raw_sprite = unsafe { std::mem::zeroed::<citro2d_sys::C2D_Sprite>() };
+        unsafe { citro2d_sys::C2D_SpriteFromSheet(&mut raw_sprite as *mut _, self.raw_sprite_sheet, index) };
+        Some(Sprite { raw_sprite, _marker: PhantomData })
+    }
+    
     pub fn get_image(&self, index: usize) -> SheetImage<'_> {
         let raw_image = unsafe { citro2d_sys::C2D_SpriteSheetGetImage(self.raw_sprite_sheet, index) };
         SheetImage {
@@ -45,6 +53,7 @@ impl Drop for SpriteSheet {
 }
 
 
+#[derive(Clone, Copy)]
 pub struct Sprite<'sheet> {
     raw_sprite: citro2d_sys::C2D_Sprite,
     _marker: std::marker::PhantomData<&'sheet SpriteSheet>,
