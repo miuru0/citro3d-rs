@@ -22,6 +22,7 @@ rust-toolchain.toml
 *.shbin
 
 # Various dev tools
+.vscode
 .idea
 .bacon-locations
 bacon.toml

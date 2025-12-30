@@ -1,11 +1,23 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, rc::Rc};
 
 use crate::base::SheetImage;
 
 
-pub struct SpriteSheet {
+pub struct SpriteSheetData {
     pub raw_sprite_sheet: citro2d_sys::C2D_SpriteSheet,
     count: usize,
+}
+
+impl Drop for SpriteSheetData {
+    fn drop(&mut self) {
+        unsafe { citro2d_sys::C2D_SpriteSheetFree(self.raw_sprite_sheet) };
+    }
+}
+
+
+#[derive(Clone)]
+pub struct SpriteSheet {
+    data: Rc<SpriteSheetData>,
 }
 
 impl SpriteSheet {
@@ -17,49 +29,48 @@ impl SpriteSheet {
         }
 
         let count = unsafe { citro2d_sys::C2D_SpriteSheetCount(raw_sprite_sheet) };
-        Ok(Self {
+        Ok(Self { data: Rc::new(SpriteSheetData {
             raw_sprite_sheet,
             count,
-        })
+        })})
     }
 
     pub fn len(&self) -> usize {
-        self.count
+        self.data.count
     }
 
-    pub fn get(&self, index: usize) -> Option<Sprite<'_>> {
-        if index >= self.count {
+    pub fn get(&self, index: usize) -> Option<Sprite> {
+        if index >= self.data.count {
             return None
         }
 
-        let mut raw_sprite = unsafe { std::mem::zeroed::<citro2d_sys::C2D_Sprite>() };
-        unsafe { citro2d_sys::C2D_SpriteFromSheet(&mut raw_sprite as *mut _, self.raw_sprite_sheet, index) };
-        Some(Sprite { raw_sprite, _marker: PhantomData })
+        let mut raw_sprite = std::mem::MaybeUninit::<citro2d_sys::C2D_Sprite>::uninit();
+        unsafe { 
+            citro2d_sys::C2D_SpriteFromSheet(raw_sprite.as_mut_ptr(), self.data.raw_sprite_sheet, index);
+            Some(Sprite { 
+                raw_sprite: raw_sprite.assume_init(), 
+                _sheet: self.clone() 
+            })
+        }
     }
     
-    pub fn get_image(&self, index: usize) -> SheetImage<'_> {
-        let raw_image = unsafe { citro2d_sys::C2D_SpriteSheetGetImage(self.raw_sprite_sheet, index) };
-        SheetImage {
+    pub fn get_image(&self, index: usize) -> SheetImage {
+        let raw_image = unsafe { citro2d_sys::C2D_SpriteSheetGetImage(self.data.raw_sprite_sheet, index) };
+       SheetImage {
             raw_image,
-            _marker: PhantomData,
+            _sheet: self.clone(),
         }
     }
 }
 
-impl Drop for SpriteSheet {
-    fn drop(&mut self) {
-        unsafe { citro2d_sys::C2D_SpriteSheetFree(self.raw_sprite_sheet) };
-    }
-}
 
-
-#[derive(Clone, Copy)]
-pub struct Sprite<'sheet> {
+#[derive(Clone)]
+pub struct Sprite {
     raw_sprite: citro2d_sys::C2D_Sprite,
-    _marker: std::marker::PhantomData<&'sheet SpriteSheet>,
+    _sheet: SpriteSheet,
 }
 
-impl<'sheet> Sprite<'sheet> {
+impl Sprite {
     pub fn render(&self) {
         unsafe { citro2d_sys::C2D_DrawSprite(&self.raw_sprite as *const _) };
     }
