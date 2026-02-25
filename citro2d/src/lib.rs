@@ -1,7 +1,6 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(test_runner::run_gdb)]
 #![feature(doc_cfg)]
-#![feature(doc_auto_cfg)]
 #![doc(html_root_url = "https://rust3ds.github.io/citro2d-rs/crates")]
 #![doc(
     html_favicon_url = "https://user-images.githubusercontent.com/11131775/225929072-2fa1741c-93ae-4b47-9bdf-af70f3d59910.png"
@@ -123,6 +122,12 @@ pub struct Point {
 }
 
 impl Point {
+    pub const ZERO: Point = Point {
+        x: 0.0,
+        y: 0.0,
+        z: 0.0,
+    };
+    
     pub const fn new(x: f32, y: f32, z: f32) -> Self {
         Self { x, y, z }
     }

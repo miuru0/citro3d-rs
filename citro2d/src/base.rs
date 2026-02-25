@@ -10,8 +10,16 @@ pub struct SheetImage {
     pub(crate) _sheet: SpriteSheet,
 }
 
+impl SheetImage {
+    pub fn get_dimensions(&mut self, x: f32, y: f32) {
+        let subtex = unsafe { *self.raw_image.subtex };
+        let width = subtex.width;
+    }
+}
+
 impl C2DImage for SheetImage {
     fn draw(&self, position: Point, scale: Size) {
         unsafe {citro2d_sys::C2D_DrawImageAt(self.raw_image, position.x, position.y, position.z, 0 as *const _, scale.width, scale.height)};
     }
+    
 }

@@ -69,6 +69,7 @@ impl C2DTextFlags {
 pub struct C2DText {
     raw_text: citro2d_sys::C2D_Text,
     raw_text_buf: citro2d_sys::C2D_TextBuf,
+    text_string: String,
     max_glyphs: usize,
     pub flags: C2DTextFlags,
     pub position: Point,
@@ -100,6 +101,7 @@ impl C2DText {
                 raw_text: raw_text.assume_init(), 
                 raw_text_buf, 
                 max_glyphs,
+                text_string: String::new(),
                 position,
                 flags,
                 size,
@@ -109,6 +111,8 @@ impl C2DText {
     }
 
     pub fn clear(&mut self) {
+        //self.raw_text.yScale = 0.;
+        self.text_string.clear();
         unsafe {citro2d_sys::C2D_TextBufClear(self.raw_text_buf)}
     }
 
@@ -125,7 +129,57 @@ impl C2DText {
         }
     }
 
+    pub fn layout_text(&mut self) -> (f32, f32) {
+        unsafe {
+            let flags = self.flags.bits();
+            let w = self.size.width;
+            let h = self.size.height;
+
+            if let Some(color) = self.color {
+                if let Some(wrap_width) = self.flags.word_wrap {
+                    unsafe { citro2d_sys::C2D_LayoutText(
+                        &mut self.raw_text, 
+                        flags | (1 << 1), // with color flag 
+                        w, h,
+                        color.inner,
+                        wrap_width,
+                    ) }
+                } else {
+                    unsafe { citro2d_sys::C2D_LayoutText(
+                        &mut self.raw_text, 
+                        flags | (1 << 1), // with color flag 
+                        w, h,
+                        color.inner,
+                    ) }
+                }
+            } else {
+                if let Some(wrap_width) = self.flags.word_wrap {
+                    unsafe { citro2d_sys::C2D_LayoutText(
+                        &mut self.raw_text, 
+                        flags,
+                        w, h,
+                        wrap_width,
+                    ) }
+                } else {
+                    unsafe { citro2d_sys::C2D_LayoutText(
+                        &mut self.raw_text, 
+                        flags,
+                        w, h,
+                    ) }
+                }
+            }
+        }
+
+        let mut width = 0.;
+        let mut height = 0.;
+        unsafe {
+            citro2d_sys::C2D_TextGetDimensions(&self.raw_text, self.size.width, self.size.height, &mut width, &mut height);
+        }
+        (width, height)
+    }
+
     pub fn append_text(&mut self, s: &str) -> Result<(), crate::Error> {
+        //self.raw_text.yScale = 0.;
         let cstr = std::ffi::CString::new(s).unwrap();
         unsafe { 
             let result = citro2d_sys::C2D_TextParse(
@@ -143,12 +197,18 @@ impl C2DText {
             }
             citro2d_sys::C2D_TextOptimize(&self.raw_text);
         }
+
+        self.text_string.push_str(s);
         Ok(())
     }
 
     pub fn set_text(&mut self, s: &str) -> Result<(), crate::Error> {
         self.clear();
         self.append_text(s)
+    }
+
+    pub fn get_text(&self) -> &str {
+        return &self.text_string
     }
 
     pub(crate) fn render(&self) {

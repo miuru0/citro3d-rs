@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, rc::Rc};
+use std::rc::Rc;
 
 use crate::base::SheetImage;
 
@@ -91,6 +91,13 @@ impl Sprite {
         self.raw_sprite.params.center.y *= y;
     }
 
+    pub fn get_position(&self) -> (f32, f32) {
+        (self.raw_sprite.params.pos.x, self.raw_sprite.params.pos.y) 
+    }
+    pub fn get_dimensions(&self) -> (f32, f32) {
+        (self.raw_sprite.params.pos.w, self.raw_sprite.params.pos.h) 
+    }
+
     pub fn set_scale(&mut self, x: f32, y: f32) {
         unsafe { citro2d_sys::C2D_SpriteSetScale(&mut self.raw_sprite as *mut _, x, y) };
     }
@@ -106,6 +113,11 @@ impl Sprite {
 
     pub fn set_depth(&mut self, depth: f32) {
         self.raw_sprite.params.depth = depth;
+    }
+
+    pub fn set_center(&mut self, x: f32, y: f32) {
+        self.raw_sprite.params.center.x = x*self.raw_sprite.params.pos.w;
+        self.raw_sprite.params.center.y = y*self.raw_sprite.params.pos.h;
     }
 
 }
