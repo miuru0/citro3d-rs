@@ -1,13 +1,13 @@
-//! This example demonstrates the most basic usage of `citro3d`: rendering a simple
-//! RGB triangle (sometimes called a "Hello triangle") to the 3DS screen.
+//! This example demonstrates drawing a coloured cube using indexed rendering.
 
 #![feature(allocator_api)]
 
 use citro3d::macros::include_shader;
-use citro3d::math::{AspectRatio, ClipPlanes, Matrix4, Projection, StereoDisplacement};
+use citro3d::math::{
+    AspectRatio, ClipPlanes, CoordinateOrientation, FVec3, Matrix4, Projection, StereoDisplacement,
+};
 use citro3d::render::{ClearFlags, Frame, ScreenTarget, Target};
-use citro3d::texenv;
-use citro3d::{attrib, buffer, shader};
+use citro3d::{attrib, buffer, shader, texenv};
 use ctru::prelude::*;
 use ctru::services::gfx::{RawFrameBuffer, Screen, TopScreen3D};
 
@@ -32,19 +32,38 @@ struct Vertex {
     color: Vec3,
 }
 
-static VERTICES: &[Vertex] = &[
-    Vertex {
-        pos: Vec3::new(0.0, 0.5, -3.0),
-        color: Vec3::new(1.0, 0.0, 0.0),
-    },
-    Vertex {
-        pos: Vec3::new(-0.5, -0.5, -3.0),
-        color: Vec3::new(0.0, 1.0, 0.0),
-    },
-    Vertex {
-        pos: Vec3::new(0.5, -0.5, -3.0),
-        color: Vec3::new(0.0, 0.0, 1.0),
-    },
+// borrowed from https://bevyengine.org/examples/3D%20Rendering/generate-custom-mesh/
+const VERTS: &[[f32; 3]] = &[
+    // top (facing towards +y)
+    [-0.5, 0.5, -0.5], // vertex with index 0
+    [0.5, 0.5, -0.5],  // vertex with index 1
+    [0.5, 0.5, 0.5],   // etc. until 23
+    [-0.5, 0.5, 0.5],
+    // bottom   (-y)
+    [-0.5, -0.5, -0.5],
+    [0.5, -0.5, -0.5],
+    [0.5, -0.5, 0.5],
+    [-0.5, -0.5, 0.5],
+    // right    (+x)
+    [0.5, -0.5, -0.5],
+    [0.5, -0.5, 0.5],
+    [0.5, 0.5, 0.5], // This vertex is at the same position as vertex with index 2, but they'll have different UV and normal
+    [0.5, 0.5, -0.5],
+    // left     (-x)
+    [-0.5, -0.5, -0.5],
+    [-0.5, -0.5, 0.5],
+    [-0.5, 0.5, 0.5],
+    [-0.5, 0.5, -0.5],
+    // back     (+z)
+    [-0.5, -0.5, 0.5],
+    [-0.5, 0.5, 0.5],
+    [0.5, 0.5, 0.5],
+    [0.5, -0.5, 0.5],
+    // forward  (-z)
+    [-0.5, -0.5, -0.5],
+    [-0.5, 0.5, -0.5],
+    [0.5, 0.5, -0.5],
+    [0.5, -0.5, -0.5],
 ];
 
 static SHADER_BYTES: &[u8] = include_shader!("assets/vshader.pica");
@@ -85,13 +104,44 @@ fn main() {
     let vertex_shader = shader.get(0).unwrap();
 
     let program = shader::Program::new(vertex_shader).unwrap();
-    let projection_uniform_idx = program.get_uniform("projection").unwrap();
 
-    let mut vbo_data = Vec::with_capacity_in(VERTICES.len(), ctru::linear::LinearAllocator);
-    vbo_data.extend_from_slice(VERTICES);
+    let mut vbo_data = Vec::with_capacity_in(VERTS.len(), ctru::linear::LinearAllocator);
+    for vert in VERTS.iter().enumerate().map(|(i, v)| Vertex {
+        pos: Vec3 {
+            x: v[0],
+            y: v[1],
+            z: v[2],
+        },
+        color: {
+            // Give each vertex a slightly different color just to highlight edges/corners
+            let value = i as f32 / VERTS.len() as f32;
+            Vec3::new(1.0, 0.7 * value, 0.5)
+        },
+    }) {
+        vbo_data.push(vert);
+    }
+
+    let attr_info = build_attrib_info();
 
     let mut buf_info = buffer::Info::new();
-    let (attr_info, vbo_data) = prepare_vbos(&mut buf_info, &vbo_data);
+    let vbo_slice = buf_info.add(&vbo_data, &attr_info).unwrap();
+
+    let projection_uniform_idx = program.get_uniform("projection").unwrap();
+    let camera_transform = Matrix4::looking_at(
+        FVec3::new(1.8, 1.8, 1.8),
+        FVec3::new(0.0, 0.0, 0.0),
+        FVec3::new(0.0, 1.0, 0.0),
+        CoordinateOrientation::RightHanded,
+    );
+    let indices: &[u8] = &[
+        0, 3, 1, 1, 3, 2, // triangles making up the top (+y) facing side.
+        4, 5, 7, 5, 6, 7, // bottom (-y)
+        8, 11, 9, 9, 11, 10, // right (+x)
+        12, 13, 15, 13, 14, 15, // left (-x)
+        16, 19, 17, 17, 19, 18, // back (+z)
+        20, 21, 23, 21, 22, 23, // forward (-z)
+    ];
+    let index_buffer = vbo_slice.index_buffer(indices).unwrap();
 
     let stage0 = texenv::TexEnv::new()
         .src(texenv::Mode::BOTH, texenv::Source::PrimaryColor, None, None)
@@ -105,8 +155,6 @@ fn main() {
         }
 
         instance.render_frame_with(|mut frame| {
-            // Sadly closures can't have lifetime specifiers,
-            // so we wrap `render_to` in this function to force the borrow checker rules.
             fn cast_lifetime_to_closure<'frame, T>(x: T) -> T
             where
                 T: Fn(&mut Frame<'frame>, &'frame mut ScreenTarget<'_>, &Matrix4),
@@ -120,20 +168,17 @@ fn main() {
                 frame
                     .select_render_target(target)
                     .expect("failed to set render target");
-                frame.bind_vertex_uniform(projection_uniform_idx, projection);
 
-                frame.set_texenvs(&[stage0]);
+                frame.bind_vertex_uniform(projection_uniform_idx, projection * camera_transform);
 
                 frame.set_attr_info(&attr_info);
 
-                frame.draw_arrays(buffer::Primitive::Triangles, vbo_data);
+                frame.draw_elements(buffer::Primitive::Triangles, vbo_slice, &index_buffer);
             });
 
-            // We bind the vertex shader.
             frame.bind_program(&program);
 
-            // Configure the first fragment shading substage to just pass through the vertex color
-            // See https://www.opengl.org/sdk/docs/man2/xhtml/glTexEnv.xml for more insight
+            frame.set_texenvs(&[stage0]);
 
             let Projections {
                 left_eye,
@@ -150,10 +195,7 @@ fn main() {
     }
 }
 
-fn prepare_vbos<'a>(
-    buf_info: &'a mut buffer::Info,
-    vbo_data: &'a [Vertex],
-) -> (attrib::Info, buffer::Slice<'a>) {
+fn build_attrib_info() -> attrib::Info {
     // Configure attributes for use with the vertex shader
     let mut attr_info = attrib::Info::new();
 
@@ -168,9 +210,7 @@ fn prepare_vbos<'a>(
         .add_loader(reg1, attrib::Format::Float, 3)
         .unwrap();
 
-    let buf_idx = buf_info.add(vbo_data, &attr_info).unwrap();
-
-    (attr_info, buf_idx)
+    attr_info
 }
 
 struct Projections {
