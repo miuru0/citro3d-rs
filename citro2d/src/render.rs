@@ -85,5 +85,11 @@ impl<'screen> Target<'screen> {
         sprite.render();
     }
 
+    pub fn flush(&self) {
+        unsafe {
+            citro2d_sys::C2D_Flush();
+        }
+    }
+
 
 }
